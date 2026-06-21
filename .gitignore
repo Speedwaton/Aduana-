@@ -1,0 +1,38 @@
+# ===== Backend (Maven / Java) =====
+target/
+*.class
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+out/
+bin/
+
+# ===== Frontend (Node / Vite) =====
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== Logs =====
+*.log
+
+# ===== IDEs =====
+.idea/
+*.iml
+.vscode/
+.project
+.classpath
+.settings/
+
+# ===== Sistema operativo =====
+.DS_Store
+Thumbs.db
+
+# ===== Variables de entorno =====
+.env
+.env.local
+
+# ===== Archivos temporales de prueba =====
+_log-*.txt
+_lt.txt
