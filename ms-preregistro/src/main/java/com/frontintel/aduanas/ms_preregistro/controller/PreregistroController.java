@@ -80,7 +80,25 @@ public class PreregistroController {
     }
 
     /**
-     * Actualiza el estado de un trámite (usado por el funcionario aduanero).
+     * Lista trámites por estado. Es la "lista de trabajo" de la PDI:
+     * los PRE_REGISTRADO / EN_REVISION son los que esperan verificación.
+     * GET http://localhost:8084/api/preregistro/estado/PRE_REGISTRADO
+     */
+    @GetMapping("/estado/{estado}")
+    public ResponseEntity<?> obtenerTramitesPorEstado(@PathVariable String estado) {
+        log.info("GET /api/preregistro/estado/{}", estado);
+        try {
+            EstadoTramite e = EstadoTramite.valueOf(estado.toUpperCase());
+            return ResponseEntity.ok(preregistroService.obtenerTramitesPorEstado(e));
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.badRequest().body("Estado desconocido: " + estado);
+        }
+    }
+
+    /**
+     * Actualiza el estado de un trámite (usado por el agente aduanero).
+     * Si el nuevo estado es APROBADO, el backend exige que la PDI ya haya
+     * aprobado la revisión del viajero (candado de seguridad).
      * PATCH http://localhost:8084/api/preregistro/QR-25-05-2025-4587/estado?nuevoEstado=APROBADO
      */
     @PatchMapping("/{idTramite}/estado")
@@ -92,7 +110,11 @@ public class PreregistroController {
             Tramite actualizado = preregistroService.actualizarEstado(idTramite, nuevoEstado);
             return ResponseEntity.ok(actualizado);
         } catch (RuntimeException e) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+            // 404 solo si el trámite no existe; el candado PDI responde 409 (conflicto).
+            HttpStatus status = e.getMessage() != null && e.getMessage().contains("no encontrado")
+                    ? HttpStatus.NOT_FOUND
+                    : HttpStatus.CONFLICT;
+            return ResponseEntity.status(status).body(e.getMessage());
         }
     }
 }

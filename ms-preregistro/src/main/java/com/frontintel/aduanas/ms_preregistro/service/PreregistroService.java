@@ -32,6 +32,9 @@ public class PreregistroService {
     @Value("${ms.notificaciones.url}")
     private String notificacionesUrl;
 
+    @Value("${ms.validacion.url}")
+    private String validacionUrl;
+
     /**
      * Crea un nuevo preregistro para un viajero y genera su código QR.
      * Luego publica el evento en Kafka para que ms-notificaciones asigne el turno.
@@ -134,8 +137,51 @@ public class PreregistroService {
         log.info("Actualizando estado del trámite {} a {}", idTramite, nuevoEstado);
         Tramite tramite = tramiteRepository.findById(idTramite)
                 .orElseThrow(() -> new RuntimeException("Trámite no encontrado con ID: " + idTramite));
+
+        // CANDADO PDI: el agente solo puede APROBAR si la PDI ya revisó y
+        // aprobó al viajero (antecedentes penales, carga del vehículo, etc.).
+        if (nuevoEstado == EstadoTramite.APROBADO) {
+            verificarAprobacionPdi(idTramite);
+        }
+
         tramite.setEstado(nuevoEstado);
         return tramiteRepository.save(tramite);
+    }
+
+    /**
+     * Consulta a ms-validacion el estado de la revisión PDI del trámite.
+     * Lanza excepción (y por tanto bloquea la aprobación) si la PDI aún no
+     * revisa, si rechazó, o si el servicio de validación no está disponible
+     * (bloqueo seguro: sin confirmación de la PDI no se aprueba a nadie).
+     */
+    private void verificarAprobacionPdi(String idTramite) {
+        String url = validacionUrl + "/api/validacion/pdi/tramite/" + idTramite;
+        try {
+            @SuppressWarnings("unchecked")
+            java.util.Map<String, Object> revision = restTemplate.getForObject(url, java.util.Map.class);
+            String resultado = revision == null ? null : String.valueOf(revision.get("resultado"));
+            if (!"APROBADO".equals(resultado)) {
+                throw new RuntimeException("La PDI revisó este trámite y su resultado es " + resultado
+                        + ". No se puede aprobar.");
+            }
+            log.info("Verificación PDI OK para el trámite {}", idTramite);
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            throw new RuntimeException("El trámite aún NO ha sido verificado por la PDI. " +
+                    "Debe esperar la revisión de antecedentes antes de aprobar.");
+        } catch (RuntimeException e) {
+            if (e.getMessage() != null && e.getMessage().startsWith("La PDI")) throw e;
+            if (e.getMessage() != null && e.getMessage().startsWith("El trámite aún NO")) throw e;
+            log.error("No se pudo consultar la revisión PDI: {}", e.getMessage());
+            throw new RuntimeException("No se pudo verificar la revisión PDI (servicio de validación " +
+                    "no disponible). Por seguridad, la aprobación queda bloqueada.");
+        }
+    }
+
+    /**
+     * Lista trámites por estado (lista de trabajo de la PDI: PRE_REGISTRADO / EN_REVISION).
+     */
+    public List<Tramite> obtenerTramitesPorEstado(EstadoTramite estado) {
+        return tramiteRepository.findByEstado(estado);
     }
 
     /**
