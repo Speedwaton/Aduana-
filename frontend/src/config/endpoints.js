@@ -18,6 +18,7 @@ export const ENDPOINTS = {
   // ms-preregistro  (vía gateway)
   preregistro: {
     crear: "/api/preregistro",
+    todos: "/api/preregistro",
     consultar: (idTramite) => `/api/preregistro/${encodeURIComponent(idTramite)}`,
     porViajero: (rut) => `/api/preregistro/viajero/${encodeURIComponent(rut)}`,
     porEstado: (estado) => `/api/preregistro/estado/${encodeURIComponent(estado)}`,
@@ -26,6 +27,7 @@ export const ENDPOINTS = {
     // Documentos del trámite (el viajero los sube desde su casa)
     documentos: (idTramite) => `/api/preregistro/${encodeURIComponent(idTramite)}/documentos`,
     descargarDocumento: (id) => `/api/preregistro/documentos/${id}`,
+    documentosConteo: "/api/preregistro/documentos-conteo",
   },
 
   // ms-validacion  (vía gateway)

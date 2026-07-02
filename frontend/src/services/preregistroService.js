@@ -14,6 +14,9 @@ export const preregistroService = {
   // GET /api/preregistro/viajero/{rut} → List<Tramite>
   porViajero: (rut) => api.get(ENDPOINTS.preregistro.porViajero(rut)),
 
+  // GET /api/preregistro → List<Tramite> TODOS (tablero del agente, sin buscar)
+  todos: () => api.get(ENDPOINTS.preregistro.todos),
+
   // GET /api/preregistro/estado/{estado} → List<Tramite> (lista de trabajo PDI)
   porEstado: (estado) => api.get(ENDPOINTS.preregistro.porEstado(estado)),
 
@@ -37,4 +40,7 @@ export const preregistroService = {
 
   // URL directa para abrir/descargar un documento en otra pestaña
   urlDocumento: (id) => ENDPOINTS.preregistro.descargarDocumento(id),
+
+  // GET /api/preregistro/documentos-conteo → [{idTramite, cantidad}]
+  documentosConteo: () => api.get(ENDPOINTS.preregistro.documentosConteo),
 };

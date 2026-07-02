@@ -18,9 +18,10 @@ import RevisionPdi from "./pages/RevisionPdi";
 import { NAV_ITEMS } from "./data/constants";
 
 // Página por defecto según el rol al iniciar sesión.
+// El agente aterriza directo en su tablero de control de viajeros.
 const DEFAULT_PAGE = {
   VIAJERO: "prerregistro",
-  FUNCIONARIO: "dashboard",
+  FUNCIONARIO: "tramites",
   PDI: "pdi",
   SUPERVISOR: "dashboard",
 };

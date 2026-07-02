@@ -54,10 +54,13 @@ export const ALERTA_STYLE = {
 };
 
 // --- Navegación: cada item declara qué roles pueden verlo ---
+// El prerregistro es SOLO del viajero (lo hace desde su casa); el agente
+// no crea trámites: los ve llegar en su tablero "Control Viajeros".
 export const NAV_ITEMS = [
   { key: "dashboard", label: "Inicio", icon: "LayoutDashboard", roles: ["FUNCIONARIO", "SUPERVISOR"] },
-  { key: "prerregistro", label: "Prerregistro", icon: "ClipboardList", roles: ["VIAJERO", "FUNCIONARIO", "SUPERVISOR"] },
-  { key: "tramites", label: "Trámites", icon: "FileText", roles: ["VIAJERO", "FUNCIONARIO", "SUPERVISOR"] },
+  { key: "prerregistro", label: "Prerregistro", icon: "ClipboardList", roles: ["VIAJERO"] },
+  { key: "tramites", label: "Mis Trámites", icon: "FileText", roles: ["VIAJERO"] },
+  { key: "tramites", label: "Control Viajeros", icon: "FileText", roles: ["FUNCIONARIO", "SUPERVISOR"] },
   { key: "validaciones", label: "Validaciones", icon: "ShieldCheck", roles: ["FUNCIONARIO", "SUPERVISOR"] },
   { key: "pdi", label: "Revisión PDI", icon: "ShieldAlert", roles: ["PDI", "SUPERVISOR"] },
   { key: "fila", label: "Fila Virtual", icon: "Car", roles: ["FUNCIONARIO", "SUPERVISOR"] },

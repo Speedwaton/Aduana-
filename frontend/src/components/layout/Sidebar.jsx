@@ -43,7 +43,7 @@ export default function Sidebar() {
           const Icon = ICONS[n.icon];
           return (
             <NavLink
-              key={n.key}
+              key={`${n.key}-${n.label}`}
               to={`/${n.key}`}
               style={({ isActive }) => ({
                 display: "flex", alignItems: "center", gap: 11, width: "100%",
