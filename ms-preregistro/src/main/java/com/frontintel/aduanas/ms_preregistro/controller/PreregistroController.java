@@ -80,6 +80,15 @@ public class PreregistroController {
     }
 
     /**
+     * Lista TODOS los trámites (tablero del agente aduanero, sin buscar).
+     * GET http://localhost:8084/api/preregistro
+     */
+    @GetMapping
+    public ResponseEntity<List<Tramite>> obtenerTodos() {
+        return ResponseEntity.ok(preregistroService.obtenerTodos());
+    }
+
+    /**
      * Lista trámites por estado. Es la "lista de trabajo" de la PDI:
      * los PRE_REGISTRADO / EN_REVISION son los que esperan verificación.
      * GET http://localhost:8084/api/preregistro/estado/PRE_REGISTRADO

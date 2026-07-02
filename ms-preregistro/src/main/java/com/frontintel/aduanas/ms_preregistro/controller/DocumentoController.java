@@ -99,6 +99,15 @@ public class DocumentoController {
     }
 
     /**
+     * Conteo de documentos por trámite (columna "Docs" del tablero del agente).
+     * GET /api/preregistro/documentos-conteo → [{idTramite, cantidad}]
+     */
+    @GetMapping("/documentos-conteo")
+    public ResponseEntity<List<DocumentoTramiteRepository.ConteoDocumentos>> conteoPorTramite() {
+        return ResponseEntity.ok(documentoRepository.contarPorTramite());
+    }
+
+    /**
      * Descarga/visualiza el contenido de un documento.
      * GET /api/preregistro/documentos/{id}
      */

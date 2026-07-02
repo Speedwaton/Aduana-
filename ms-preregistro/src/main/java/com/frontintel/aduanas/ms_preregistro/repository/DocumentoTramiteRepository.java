@@ -30,4 +30,17 @@ public interface DocumentoTramiteRepository extends JpaRepository<DocumentoTrami
         long getTamano();
         java.time.LocalDateTime getFechaSubida();
     }
+
+    /**
+     * Cuenta los documentos agrupados por trámite (para el tablero del agente:
+     * ver de un vistazo cuántos documentos aportó cada viajero).
+     */
+    @Query("select d.idTramite as idTramite, count(d) as cantidad " +
+           "from DocumentoTramite d group by d.idTramite")
+    List<ConteoDocumentos> contarPorTramite();
+
+    interface ConteoDocumentos {
+        String getIdTramite();
+        long getCantidad();
+    }
 }

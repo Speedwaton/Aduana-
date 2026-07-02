@@ -185,6 +185,17 @@ public class PreregistroService {
     }
 
     /**
+     * Lista TODOS los trámites (tablero del agente aduanero), los más
+     * recientes primero. El agente no busca a ciegas: ve llegar a los
+     * viajeros con su estado PDI y documentos.
+     */
+    public List<Tramite> obtenerTodos() {
+        return tramiteRepository.findAll(
+                org.springframework.data.domain.Sort.by(
+                        org.springframework.data.domain.Sort.Direction.DESC, "fechaCreacion"));
+    }
+
+    /**
      * Genera un ID de trámite único con el formato QR-DD-MM-YYYY-NNNN.
      * Ejemplo: QR-25-05-2025-4587
      */
