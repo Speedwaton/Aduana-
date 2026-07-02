@@ -34,8 +34,8 @@ ms-autenticacion ms-preregistro ms-validacion ms-operaciones ms-fila-virtual
 | `ms-autenticacion`  | 8081   | Login y registro (JWT)                             | `db_usuarios`     |
 | `ms-fila-virtual`   | 8082   | Cola de vehículos en espera                        | — (en memoria)    |
 | `ms-notificaciones` | 8083   | Asigna turnos del viajero (REST, en memoria)       | — (en memoria)    |
-| `ms-preregistro`    | 8084   | Prerregistro de viajeros + código QR               | `db_tramites`     |
-| `ms-validacion`     | 8085   | Validación de identidad en el control              | `db_validaciones` |
+| `ms-preregistro`    | 8084   | Prerregistro + código QR + **documentos del viajero** | `db_tramites`     |
+| `ms-validacion`     | 8085   | Validación de identidad + **revisión PDI**        | `db_validaciones` |
 | `ms-reportes`       | 8086   | Dashboard con métricas                             | —                 |
 | `ms-operaciones`    | 8087   | Revisión aduanera de vehículos                     | `db_operaciones`  |
 
@@ -127,20 +127,62 @@ todas las llamadas a `/api/**` se reenvían al API Gateway (`:8080`), así no ha
 
 ---
 
+## 🔒 Registro seguro por rol
+
+El rol **NO se elige libremente** en el registro (sería inseguro):
+
+- **"Soy viajero"** (registro público): crea SIEMPRE cuentas `VIAJERO`. Aunque
+  alguien manipule la petición, el backend fuerza el rol.
+- **"Acceso institucional"**: el personal se registra presentando el **código
+  secreto** de su rol, configurado en `ms-autenticacion/src/main/resources/application.properties`:
+
+| Rol | Código (por defecto) |
+|-----|----------------------|
+| `FUNCIONARIO` (agente aduanero) | `AGENTE-ADUANA-2026` |
+| `PDI` (Policía de Investigaciones) | `PDI-CHILE-2026` |
+| `SUPERVISOR` | `SUPERVISOR-FRONTERA-2026` |
+
+> En producción estos códigos irían en variables de entorno, no en el repositorio.
+
+---
+
 ## 👥 Roles y qué ve cada uno
 
-Al registrarte eliges un rol. El menú lateral se adapta:
+| Rol           | Acceso                                                                        |
+|---------------|-------------------------------------------------------------------------------|
+| `VIAJERO`     | Prerregistro, Mis Trámites (con subida de documentos), **Mi Turno**          |
+| `PDI`         | **Revisión PDI**: verifica antecedentes penales y carga de cada viajero       |
+| `FUNCIONARIO` | **Control Viajeros** (tablero en vivo), Validaciones (cola de llegada), Fila, Operaciones, Dashboard, Reportes |
+| `SUPERVISOR`  | Todo lo anterior + Estado del Sistema                                         |
 
-| Rol           | Acceso                                                                       |
-|---------------|------------------------------------------------------------------------------|
-| `VIAJERO`     | Prerregistro, Mis Trámites, **Mi Turno**                                     |
-| `FUNCIONARIO` | Dashboard, Prerregistro, Trámites, Validaciones, Fila, Operaciones, Reportes |
-| `SUPERVISOR`  | Todo lo anterior + Estado del Sistema                                        |
+---
 
-**Flujo de demo sugerido:**
-1. Regístrate como **VIAJERO** → crea un **Prerregistro** (genera un QR).
-2. Ve a **Mi Turno** → verás tu número de turno asignado automáticamente.
-3. Regístrate como **FUNCIONARIO** → revisa el **Dashboard**, valida identidades y atiende la fila.
+## 🚦 El flujo completo (la idea del proyecto: agilizar la frontera)
+
+Todo el trámite se hace **desde la casa del viajero**; en la frontera el agente
+solo corrobora lo ya verificado:
+
+```
+CASA      1. El VIAJERO se registra y crea su prerregistro (recibe QR + turno)
+          2. Sube sus documentos: antecedentes penales, licencia, permiso, seguro
+             (PDF o imagen, se guardan en MySQL)
+
+PDI       3. Ve la cola de trámites por verificar, abre los documentos del viajero
+          4. Marca: antecedentes ✓/✗, vehículo/carga ✓/✗ + observaciones
+             → el resultado queda visible para el agente
+
+FRONTERA  5. El AGENTE ve su tablero "Control Viajeros" EN VIVO (se refresca solo):
+             cada viajero con su estado PDI y sus documentos
+          6. CANDADO: solo puede APROBAR si la PDI aprobó (el backend responde
+             409 si se intenta saltar)
+          7. En "Validaciones" (llegada a ventanilla): clic en el viajero → los
+             datos del QR se cargan solos → compara con el carnet físico → 1 clic
+```
+
+**Demo sugerida (3 sesiones):**
+1. **Viajero** (registro público) → Prerregistro → Mis Trámites → subir un PDF de antecedentes.
+2. **PDI** (código `PDI-CHILE-2026`) → Revisión PDI → abrir el trámite, ver el documento, aprobar.
+3. **Funcionario** (código `AGENTE-ADUANA-2026`) → Control Viajeros: el botón aprobar ya está habilitado → Validaciones: validar identidad en 1 clic.
 
 ---
 
