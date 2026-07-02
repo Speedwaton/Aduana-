@@ -1,8 +1,14 @@
+import { useLocation } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
+import { PAGE_TITLES } from "../../data/constants";
 
-export default function Header({ title }) {
+export default function Header() {
   const { user } = useAuth();
+  const { pathname } = useLocation();
+  // La URL define el título: /tramites → "Trámites", /dashboard → "Dashboard"...
+  const title = PAGE_TITLES[pathname.replace("/", "")] || "Frontera Inteligente";
+
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",

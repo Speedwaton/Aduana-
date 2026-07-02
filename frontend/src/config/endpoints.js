@@ -12,6 +12,7 @@ export const ENDPOINTS = {
   auth: {
     login: "/api/v1/auth/login",
     registro: "/api/v1/auth/registro",
+    registroInstitucional: "/api/v1/auth/registro-institucional",
   },
 
   // ms-preregistro  (vía gateway)
@@ -19,8 +20,12 @@ export const ENDPOINTS = {
     crear: "/api/preregistro",
     consultar: (idTramite) => `/api/preregistro/${encodeURIComponent(idTramite)}`,
     porViajero: (rut) => `/api/preregistro/viajero/${encodeURIComponent(rut)}`,
+    porEstado: (estado) => `/api/preregistro/estado/${encodeURIComponent(estado)}`,
     actualizarEstado: (idTramite, nuevoEstado) =>
       `/api/preregistro/${encodeURIComponent(idTramite)}/estado?nuevoEstado=${nuevoEstado}`,
+    // Documentos del trámite (el viajero los sube desde su casa)
+    documentos: (idTramite) => `/api/preregistro/${encodeURIComponent(idTramite)}/documentos`,
+    descargarDocumento: (id) => `/api/preregistro/documentos/${id}`,
   },
 
   // ms-validacion  (vía gateway)
@@ -29,6 +34,11 @@ export const ENDPOINTS = {
     porTramite: (idTramite) => `/api/validacion/tramite/${encodeURIComponent(idTramite)}`,
     estadisticas: "/api/validacion/estadisticas",
     historial: "/api/validacion/historial",
+    // Revisión PDI (antecedentes penales + carga del vehículo)
+    pdi: "/api/validacion/pdi",
+    pdiPorTramite: (idTramite) => `/api/validacion/pdi/tramite/${encodeURIComponent(idTramite)}`,
+    pdiHistorial: "/api/validacion/pdi/historial",
+    pdiEstadisticas: "/api/validacion/pdi/estadisticas",
   },
 
   // ms-fila-virtual  (vía gateway)

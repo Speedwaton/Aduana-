@@ -1,16 +1,17 @@
+import { NavLink } from "react-router-dom";
 import {
   LayoutDashboard, ClipboardList, FileText, ShieldCheck, Car,
-  PackageSearch, Clock, BarChart2, Server, Shield, LogOut,
+  PackageSearch, Clock, BarChart2, Server, Shield, LogOut, ShieldAlert,
 } from "lucide-react";
 import { NAV_ITEMS } from "../../data/constants";
 import { useAuth } from "../../context/AuthContext";
 
 const ICONS = {
   LayoutDashboard, ClipboardList, FileText, ShieldCheck, Car,
-  PackageSearch, Clock, BarChart2, Server,
+  PackageSearch, Clock, BarChart2, Server, ShieldAlert,
 };
 
-export default function Sidebar({ active, setActive }) {
+export default function Sidebar() {
   const { user, logout } = useAuth();
   const rol = user?.rol;
   const items = NAV_ITEMS.filter((n) => n.roles.includes(rol));
@@ -36,16 +37,15 @@ export default function Sidebar({ active, setActive }) {
         </div>
       </div>
 
-      {/* Navegación filtrada por rol */}
+      {/* Navegación filtrada por rol — cada item es una URL real (/dashboard, /tramites...) */}
       <nav style={{ flex: 1, padding: "10px 0" }}>
         {items.map((n) => {
           const Icon = ICONS[n.icon];
-          const isActive = active === n.key;
           return (
-            <button
+            <NavLink
               key={n.key}
-              onClick={() => setActive(n.key)}
-              style={{
+              to={`/${n.key}`}
+              style={({ isActive }) => ({
                 display: "flex", alignItems: "center", gap: 11, width: "100%",
                 padding: "9px 18px",
                 background: isActive ? "rgba(24,95,165,0.35)" : "none",
@@ -53,11 +53,12 @@ export default function Sidebar({ active, setActive }) {
                 borderLeft: isActive ? "3px solid #378ADD" : "3px solid transparent",
                 color: isActive ? "#fff" : "#7aa3cc",
                 fontSize: 13.5, cursor: "pointer", textAlign: "left", transition: "all 0.15s",
-              }}
+                textDecoration: "none", boxSizing: "border-box",
+              })}
             >
-              {Icon && <Icon size={16} strokeWidth={isActive ? 2.2 : 1.8} />}
+              {Icon && <Icon size={16} strokeWidth={1.9} />}
               {n.label}
-            </button>
+            </NavLink>
           );
         })}
       </nav>

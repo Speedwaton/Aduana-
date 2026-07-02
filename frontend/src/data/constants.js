@@ -3,13 +3,25 @@
 // ============================================================
 
 // --- Enums del backend (deben coincidir EXACTO con Java) ---
-export const ROLES = ["VIAJERO", "FUNCIONARIO", "SUPERVISOR"];
+export const ROLES = ["VIAJERO", "FUNCIONARIO", "PDI", "SUPERVISOR"];
+
+// Roles que se registran con código institucional (no desde el registro público)
+export const ROLES_INSTITUCIONALES = ["FUNCIONARIO", "PDI", "SUPERVISOR"];
 
 export const MOTIVOS_VIAJE = ["TURISMO", "TRABAJO", "RESIDENCIA", "TRANSITO", "COMERCIO"];
 
 export const ESTADOS_TRAMITE = ["PRE_REGISTRADO", "EN_REVISION", "APROBADO", "RECHAZADO", "EXPIRADO"];
 
 export const TIPOS_VEHICULO = ["AUTO", "CAMION", "BUS", "MOTO"];
+
+// Tipos de documento que el viajero puede subir a su trámite
+export const TIPOS_DOCUMENTO = [
+  { value: "ANTECEDENTES_PENALES", label: "Certificado de antecedentes penales" },
+  { value: "LICENCIA_CONDUCIR", label: "Licencia de conducir" },
+  { value: "PERMISO_VEHICULO", label: "Permiso de circulación / vehículo" },
+  { value: "SEGURO", label: "Seguro obligatorio" },
+  { value: "OTRO", label: "Otro documento" },
+];
 
 // --- Colores por estado (para Badge) ---
 export const ESTADO_COLORS = {
@@ -29,6 +41,9 @@ export const ESTADO_COLORS = {
   EN_ESPERA: { bg: "#eaf2fb", text: "#185FA5" },
   LLAMADO_A_VENTANILLA: { bg: "#e1f5ee", text: "#0F6E56" },
   PROCESADO: { bg: "#f1efe8", text: "#5F5E5A" },
+  // Revisión PDI
+  NO_APLICA: { bg: "#f1efe8", text: "#5F5E5A" },
+  PENDIENTE: { bg: "#faeeda", text: "#854F0B" },
 };
 
 // --- Nivel de alerta del dashboard (DashboardDto.alertas[].nivel) ---
@@ -44,6 +59,7 @@ export const NAV_ITEMS = [
   { key: "prerregistro", label: "Prerregistro", icon: "ClipboardList", roles: ["VIAJERO", "FUNCIONARIO", "SUPERVISOR"] },
   { key: "tramites", label: "Trámites", icon: "FileText", roles: ["VIAJERO", "FUNCIONARIO", "SUPERVISOR"] },
   { key: "validaciones", label: "Validaciones", icon: "ShieldCheck", roles: ["FUNCIONARIO", "SUPERVISOR"] },
+  { key: "pdi", label: "Revisión PDI", icon: "ShieldAlert", roles: ["PDI", "SUPERVISOR"] },
   { key: "fila", label: "Fila Virtual", icon: "Car", roles: ["FUNCIONARIO", "SUPERVISOR"] },
   { key: "operaciones", label: "Operaciones", icon: "PackageSearch", roles: ["FUNCIONARIO", "SUPERVISOR"] },
   { key: "miturno", label: "Mi Turno", icon: "Clock", roles: ["VIAJERO"] },
@@ -56,6 +72,7 @@ export const PAGE_TITLES = {
   prerregistro: "Prerregistro",
   tramites: "Trámites",
   validaciones: "Validaciones",
+  pdi: "Revisión PDI",
   fila: "Fila Virtual",
   operaciones: "Operaciones Aduaneras",
   miturno: "Mi Turno",

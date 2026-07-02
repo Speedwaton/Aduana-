@@ -1,26 +1,38 @@
 import { useState } from "react";
-import { Search, CheckCircle, XCircle, Eye } from "lucide-react";
+import { Search, CheckCircle, XCircle, Eye, FileText, Upload, ShieldAlert } from "lucide-react";
 import QRCode from "react-qr-code";
 import { preregistroService } from "../services/preregistroService";
+import { validacionService } from "../services/validacionService";
 import Badge from "../components/ui/Badge";
 import Modal from "../components/ui/Modal";
+import Input from "../components/ui/Input";
 import { PrimaryButton, SecondaryButton } from "../components/ui/Buttons";
 import Spinner from "../components/ui/Spinner";
-import { fmtFecha, labelEnum } from "../data/constants";
+import { fmtFecha, labelEnum, TIPOS_DOCUMENTO } from "../data/constants";
 import { useAuth } from "../context/AuthContext";
 
-// Consulta de trámites por RUT del viajero (o por código de trámite) y
-// gestión de estado para funcionarios/supervisores.
+// Consulta y gestión de trámites.
+//  - VIAJERO: ve sus trámites, sube documentos desde casa y sigue el estado PDI.
+//  - FUNCIONARIO (agente): ve el resultado de la PDI y corrobora (aprueba)
+//    SOLO cuando la PDI ya aprobó — el backend lo exige (candado).
 export default function Tramites({ notify }) {
   const { user } = useAuth();
   const esFuncionario = user?.rol === "FUNCIONARIO" || user?.rol === "SUPERVISOR";
+  const esViajero = user?.rol === "VIAJERO";
 
   const [modo, setModo] = useState("rut"); // "rut" | "id"
-  const [query, setQuery] = useState(user?.rol === "VIAJERO" ? user.rut : "");
+  const [query, setQuery] = useState(esViajero ? user.rut : "");
   const [tramites, setTramites] = useState([]);
   const [loading, setLoading] = useState(false);
   const [detalle, setDetalle] = useState(null);
   const [buscado, setBuscado] = useState(false);
+
+  // Estado PDI + documentos del trámite abierto en el detalle
+  const [revisionPdi, setRevisionPdi] = useState(null);   // null = sin revisar
+  const [documentos, setDocumentos] = useState([]);
+  const [tipoDoc, setTipoDoc] = useState("ANTECEDENTES_PENALES");
+  const [archivo, setArchivo] = useState(null);
+  const [subiendo, setSubiendo] = useState(false);
 
   const buscar = async () => {
     if (!query.trim()) return notify("error", "Ingresa un valor para buscar.");
@@ -41,6 +53,20 @@ export default function Tramites({ notify }) {
     }
   };
 
+  // Abre el detalle y trae el estado PDI + documentos del trámite.
+  const abrirDetalle = async (t) => {
+    setDetalle(t);
+    setRevisionPdi(null);
+    setDocumentos([]);
+    setArchivo(null);
+    validacionService.pdiPorTramite(t.idTramite)
+      .then(setRevisionPdi)
+      .catch(() => setRevisionPdi(null)); // 404 = la PDI aún no revisa
+    preregistroService.listarDocumentos(t.idTramite)
+      .then((d) => setDocumentos(Array.isArray(d) ? d : []))
+      .catch(() => setDocumentos([]));
+  };
+
   const cambiarEstado = async (idTramite, nuevoEstado) => {
     try {
       const actualizado = await preregistroService.actualizarEstado(idTramite, nuevoEstado);
@@ -48,9 +74,28 @@ export default function Tramites({ notify }) {
       if (detalle?.idTramite === idTramite) setDetalle(actualizado);
       notify("success", `Trámite ${idTramite} → ${labelEnum(nuevoEstado)}`);
     } catch (e) {
+      // El candado PDI responde 409 con el motivo (ej: falta revisión PDI).
       notify("error", e.message);
     }
   };
+
+  const subirDocumento = async () => {
+    if (!archivo) return notify("error", "Selecciona un archivo (PDF o imagen).");
+    setSubiendo(true);
+    try {
+      await preregistroService.subirDocumento(detalle.idTramite, archivo, tipoDoc);
+      notify("success", "Documento subido. La PDI podrá revisarlo antes de tu viaje.");
+      setArchivo(null);
+      const d = await preregistroService.listarDocumentos(detalle.idTramite);
+      setDocumentos(Array.isArray(d) ? d : []);
+    } catch (e) {
+      notify("error", e.message);
+    } finally {
+      setSubiendo(false);
+    }
+  };
+
+  const pdiAprobado = revisionPdi?.resultado === "APROBADO";
 
   return (
     <div style={{ padding: 28 }}>
@@ -95,7 +140,7 @@ export default function Tramites({ notify }) {
                 <td style={{ padding: "12px 14px" }}><Badge estado={t.estado} /></td>
                 <td style={{ padding: "12px 14px" }}>
                   <div style={{ display: "flex", gap: 6 }}>
-                    <IconBtn bg="#eaf2fb" color="#185FA5" onClick={() => setDetalle(t)}><Eye size={13} /></IconBtn>
+                    <IconBtn bg="#eaf2fb" color="#185FA5" onClick={() => abrirDetalle(t)}><Eye size={13} /></IconBtn>
                     {esFuncionario && t.estado !== "APROBADO" && (
                       <IconBtn bg="#e1f5ee" color="#0F6E56" onClick={() => cambiarEstado(t.idTramite, "APROBADO")}><CheckCircle size={13} /></IconBtn>
                     )}
@@ -116,20 +161,18 @@ export default function Tramites({ notify }) {
         </table>
       </div>
 
-      {/* Detalle + QR + gestión */}
+      {/* Detalle: datos + estado PDI + documentos + QR + gestión */}
       {detalle && (
-        <Modal title="Detalle del trámite" onClose={() => setDetalle(null)}>
-          <div style={{ background: "#f8fafd", borderRadius: 10, padding: 16, marginBottom: 16 }}>
+        <Modal title="Detalle del trámite" onClose={() => setDetalle(null)} width={640}>
+          <div style={{ background: "#f8fafd", borderRadius: 10, padding: 16, marginBottom: 14 }}>
             {[
               ["Código", detalle.idTramite],
               ["Viajero", detalle.nombreCompleto],
               ["RUT", detalle.rutViajero],
               ["Nacionalidad", detalle.nacionalidad],
-              ["Correo", detalle.correoElectronico],
               ["Fecha ingreso", detalle.fechaIngreso],
               ["Motivo", labelEnum(detalle.motivoViaje)],
               ["Patente", detalle.patenteVehiculo || "Sin vehículo"],
-              ["Creado", fmtFecha(detalle.fechaCreacion)],
             ].map(([k, v]) => (
               <div key={k} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 0", borderBottom: "1px solid #e8ecf2" }}>
                 <span style={{ fontSize: 13, color: "#9ab5cc" }}>{k}</span>
@@ -137,21 +180,100 @@ export default function Tramites({ notify }) {
               </div>
             ))}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0 0" }}>
-              <span style={{ fontSize: 13, color: "#9ab5cc" }}>Estado</span>
+              <span style={{ fontSize: 13, color: "#9ab5cc" }}>Estado del trámite</span>
               <Badge estado={detalle.estado} />
             </div>
           </div>
 
-          <div style={{ textAlign: "center", padding: "18px 0", background: "#fff", border: "1px solid #e8ecf2", borderRadius: 10, marginBottom: 16 }}>
-            <QRCode value={detalle.codigoQr || detalle.idTramite} size={140} level="M" />
-            <div style={{ fontSize: 12, color: "#9ab5cc", marginTop: 10 }}>Presentar en el control de identidad</div>
+          {/* Estado de la verificación PDI (visible para viajero y agente) */}
+          <div style={{
+            display: "flex", alignItems: "flex-start", gap: 10, padding: 14, borderRadius: 10, marginBottom: 14,
+            background: pdiAprobado ? "#e1f5ee" : revisionPdi ? "#fcebeb" : "#faeeda",
+            border: `1px solid ${pdiAprobado ? "#bfe6d6" : revisionPdi ? "#f3d4d4" : "#f0e0c0"}`,
+          }}>
+            <ShieldAlert size={17} color={pdiAprobado ? "#0F6E56" : revisionPdi ? "#A32D2D" : "#854F0B"} style={{ marginTop: 1, flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 13.5, fontWeight: 700, color: pdiAprobado ? "#0F6E56" : revisionPdi ? "#A32D2D" : "#854F0B" }}>
+                Verificación PDI: {revisionPdi ? revisionPdi.resultado : "PENDIENTE"}
+              </div>
+              {revisionPdi ? (
+                <div style={{ fontSize: 12.5, color: "#5a6278", marginTop: 4, lineHeight: 1.5 }}>
+                  Antecedentes penales: <b>{labelEnum(revisionPdi.antecedentesPenales)}</b> ·
+                  Vehículo/carga: <b>{labelEnum(revisionPdi.revisionVehiculo)}</b>
+                  {revisionPdi.observaciones && <div style={{ marginTop: 3 }}>Indicaciones PDI: {revisionPdi.observaciones}</div>}
+                  <div style={{ fontSize: 11.5, color: "#9ab5cc", marginTop: 3 }}>Oficial {revisionPdi.rutPdi} · {fmtFecha(revisionPdi.fechaRevision)}</div>
+                </div>
+              ) : (
+                <div style={{ fontSize: 12.5, color: "#5a6278", marginTop: 4 }}>
+                  {esViajero
+                    ? "La PDI aún no revisa tu trámite. Sube tus documentos para agilizar la verificación."
+                    : "La PDI aún no verifica este trámite: no se puede aprobar hasta que lo haga."}
+                </div>
+              )}
+            </div>
           </div>
 
+          {/* Documentos del trámite */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: "#0c1f3f", marginBottom: 8 }}>
+              Documentos ({documentos.length})
+            </div>
+            {documentos.map((d) => (
+              <a key={d.id} href={preregistroService.urlDocumento(d.id)} target="_blank" rel="noreferrer"
+                 style={{ display: "flex", alignItems: "center", gap: 9, padding: "8px 12px", background: "#f8fafd", borderRadius: 8, marginBottom: 6, textDecoration: "none" }}>
+                <FileText size={15} color="#185FA5" />
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 12.5, color: "#185FA5", fontWeight: 600 }}>{labelEnum(d.tipoDocumento)}</div>
+                  <div style={{ fontSize: 11.5, color: "#9ab5cc" }}>{d.nombreArchivo} · {(d.tamano / 1024).toFixed(0)} KB</div>
+                </div>
+                <span style={{ fontSize: 11.5, color: "#185FA5" }}>Ver ↗</span>
+              </a>
+            ))}
+            {documentos.length === 0 && (
+              <div style={{ fontSize: 12.5, color: "#9ab5cc", background: "#f8fafd", borderRadius: 8, padding: 10 }}>
+                Sin documentos adjuntos todavía.
+              </div>
+            )}
+
+            {/* El viajero sube documentos desde su casa */}
+            {esViajero && (
+              <div style={{ border: "1px dashed #c9d6e6", borderRadius: 10, padding: 12, marginTop: 10 }}>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: "#185FA5", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}>
+                  <Upload size={14} /> Subir documento (desde tu casa, sin ir a la frontera)
+                </div>
+                <Input label="Tipo de documento" value={tipoDoc} onChange={setTipoDoc} options={TIPOS_DOCUMENTO} required />
+                <input
+                  type="file"
+                  accept="application/pdf,image/jpeg,image/png,image/webp"
+                  onChange={(e) => setArchivo(e.target.files?.[0] || null)}
+                  style={{ fontSize: 12.5, marginBottom: 10, display: "block" }}
+                />
+                <PrimaryButton onClick={subirDocumento} disabled={subiendo || !archivo} style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13 }}>
+                  {subiendo ? <Spinner size={14} color="#fff" /> : <Upload size={14} />} Subir (PDF o imagen, máx 5MB)
+                </PrimaryButton>
+              </div>
+            )}
+          </div>
+
+          {/* QR */}
+          <div style={{ textAlign: "center", padding: "16px 0", background: "#fff", border: "1px solid #e8ecf2", borderRadius: 10, marginBottom: 14 }}>
+            <QRCode value={detalle.codigoQr || detalle.idTramite} size={130} level="M" />
+            <div style={{ fontSize: 12, color: "#9ab5cc", marginTop: 8 }}>Presentar en el control de identidad</div>
+          </div>
+
+          {/* Gestión del agente: aprobar solo si la PDI aprobó */}
           {esFuncionario && (
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
+              {!pdiAprobado && (
+                <span style={{ fontSize: 12, color: "#854F0B", marginRight: "auto" }}>
+                  ⚠ Aprobar requiere verificación PDI aprobada.
+                </span>
+              )}
               <SecondaryButton onClick={() => cambiarEstado(detalle.idTramite, "EN_REVISION")}>En revisión</SecondaryButton>
               <button onClick={() => cambiarEstado(detalle.idTramite, "RECHAZADO")} style={{ background: "#fcebeb", color: "#A32D2D", border: "none", borderRadius: 8, padding: "9px 16px", fontSize: 14, cursor: "pointer", fontWeight: 600 }}>Rechazar</button>
-              <PrimaryButton onClick={() => cambiarEstado(detalle.idTramite, "APROBADO")}>Aprobar</PrimaryButton>
+              <PrimaryButton onClick={() => cambiarEstado(detalle.idTramite, "APROBADO")} disabled={!pdiAprobado}>
+                Aprobar
+              </PrimaryButton>
             </div>
           )}
         </Modal>

@@ -79,9 +79,45 @@ async function request(url, { method = "GET", body, auth = true } = {}) {
   return data === "" ? null : data;
 }
 
+/**
+ * Envía un FormData (multipart/form-data), usado para subir archivos.
+ * No se fija Content-Type manualmente: el navegador agrega el boundary.
+ */
+async function requestForm(url, formData) {
+  const headers = {};
+  const token = getToken();
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  let response;
+  try {
+    response = await fetch(url, { method: "POST", headers, body: formData });
+  } catch {
+    throw new ApiError(
+      "No se pudo conectar con el servidor. Verifica que el backend (API Gateway :8080) esté encendido.",
+      0
+    );
+  }
+
+  const raw = await response.text();
+  const contentType = response.headers.get("content-type") || "";
+  let data = raw;
+  if (contentType.includes("application/json") && raw) {
+    try { data = JSON.parse(raw); } catch { data = raw; }
+  }
+  if (!response.ok) {
+    const message =
+      (data && typeof data === "object" && (data.message || data.error)) ||
+      (typeof data === "string" && data) ||
+      `Error ${response.status}`;
+    throw new ApiError(message, response.status);
+  }
+  return data === "" ? null : data;
+}
+
 export const api = {
   get: (url, opts) => request(url, { ...opts, method: "GET" }),
   post: (url, body, opts) => request(url, { ...opts, method: "POST", body }),
+  postForm: (url, formData) => requestForm(url, formData),
   patch: (url, body, opts) => request(url, { ...opts, method: "PATCH", body }),
   del: (url, opts) => request(url, { ...opts, method: "DELETE" }),
 };
