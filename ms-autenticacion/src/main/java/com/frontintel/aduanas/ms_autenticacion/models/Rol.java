@@ -11,9 +11,15 @@ public enum Rol {
     VIAJERO,
 
     /**
-     * Operador aduanero o policía en ventanilla física que valida los controles.
+     * Operador aduanero (agente) en ventanilla física que corrobora los controles.
      */
     FUNCIONARIO,
+
+    /**
+     * Policía de Investigaciones: verifica antecedentes penales, carga del
+     * vehículo y situación del viajero ANTES de que el agente pueda aprobar.
+     */
+    PDI,
 
     /**
      * Personal de jefatura encargado de auditorías, reportes y métricas macro.

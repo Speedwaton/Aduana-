@@ -2,6 +2,7 @@ package com.frontintel.aduanas.ms_autenticacion.controllers;
 
 import com.frontintel.aduanas.ms_autenticacion.dtos.LoginRequestDto;
 import com.frontintel.aduanas.ms_autenticacion.dtos.LoginResponseDto;
+import com.frontintel.aduanas.ms_autenticacion.dtos.RegistroInstitucionalDto;
 import com.frontintel.aduanas.ms_autenticacion.dtos.RegistroRequestDto;
 import com.frontintel.aduanas.ms_autenticacion.services.AutenticacionService;
 import jakarta.validation.Valid;
@@ -20,11 +21,9 @@ public class AutenticacionController {
     private final AutenticacionService autenticacionService;
 
     /**
-     * Endpoint HTTP POST para registrar nuevos usuarios (Viajeros o Funcionarios).
-     * URL de acceso: POST http://localhost:8081/api/v1/auth/registro
-     *
-     * @param registroDto Objeto con los datos de registro validados.
-     * @return Mensaje de confirmación con estado 201 Created.
+     * Registro PÚBLICO de viajeros. Siempre crea la cuenta con rol VIAJERO
+     * (el rol ya no se puede elegir desde afuera por seguridad).
+     * URL: POST http://localhost:8081/api/v1/auth/registro
      */
     @PostMapping("/registro")
     public ResponseEntity<String> registrarUsuario(@Valid @RequestBody RegistroRequestDto registroDto) {
@@ -34,6 +33,24 @@ public class AutenticacionController {
             return new ResponseEntity<>(respuesta, HttpStatus.CREATED);
         } catch (RuntimeException e) {
             log.error("Error en el registro del RUT {}: {}", registroDto.getRut(), e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
+        }
+    }
+
+    /**
+     * Registro INSTITUCIONAL para personal: FUNCIONARIO (agente), PDI y
+     * SUPERVISOR. Exige el código institucional del rol solicitado.
+     * URL: POST http://localhost:8081/api/v1/auth/registro-institucional
+     */
+    @PostMapping("/registro-institucional")
+    public ResponseEntity<String> registrarInstitucional(
+            @Valid @RequestBody RegistroInstitucionalDto dto) {
+        log.info("Registro institucional solicitado: RUT {} rol {}", dto.getRut(), dto.getRol());
+        try {
+            String respuesta = autenticacionService.registrarInstitucional(dto);
+            return new ResponseEntity<>(respuesta, HttpStatus.CREATED);
+        } catch (RuntimeException e) {
+            log.error("Registro institucional rechazado para {}: {}", dto.getRut(), e.getMessage());
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(e.getMessage());
         }
     }
